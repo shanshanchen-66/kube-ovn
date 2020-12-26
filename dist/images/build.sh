@@ -31,6 +31,7 @@ cd ovn
 
 # kube-ovn related patches
 curl https://github.com/alauda/ovn/commit/f2db72af17f8ad1ea721b1d02e005ed84620fde2.patch | git apply
+curl https://github.com/fanriming/ovn/commit/8807717823c557fc486dccae094f4de9ce7c1e09.patch | git apply
 
 sed -i 's/20.06.3/20.06.2/g' configure.ac
 ./boot.sh
