@@ -25,6 +25,10 @@ func (c *Controller) gc() error {
 		c.gcLoadBalancer,
 		c.gcPortGroup,
 		c.gcStaticRoute,
+		c.gcPortChainClassifier,
+		c.gcPortPairGroup,
+		c.gcChain,
+		c.gcPortPair,
 	}
 	for _, gcFunc := range gcFunctions {
 		if err := gcFunc(); err != nil {
