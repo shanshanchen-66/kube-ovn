@@ -16,6 +16,16 @@ import (
 	"k8s.io/klog"
 )
 
+func (c *Controller) runAddSfcWorker() {
+	for c.processNextAddOrUpdateSfcWorkItem() {
+	}
+}
+
+func (c *Controller) runDelSfcWorker() {
+	for c.processNextDelSfcWorkItem() {
+	}
+}
+
 func (c *Controller) enqueueAddSfc(obj interface{}) {
 	if !c.isLeader() {
 		return
@@ -45,14 +55,14 @@ func (c *Controller) enqueueUpdateSfc(old, new interface{}) {
 	}
 
 	if !newSfc.DeletionTimestamp.IsZero() {
-		c.updateSfcQueue.Add(key)
+		c.addOrUpdateSfcQueue.Add(key)
 		return
 	}
 
 	if !reflect.DeepEqual(oldSfc.Spec.Subnet, newSfc.Spec.Subnet) ||
 		!reflect.DeepEqual(oldSfc.Spec.VnfGroups, newSfc.Spec.VnfGroups) {
 		klog.V(3).Infof("enqueue update sfc %s", key)
-		c.addOrUpdateVpcQueue.Add(key)
+		c.addOrUpdateSfcQueue.Add(key)
 	}
 }
 
@@ -284,12 +294,12 @@ func (c *Controller) handleDelSfc(key string) error {
 }
 
 func (c *Controller) deletePortPairGroupOfChain(chainName string) error {
-	ppgs, err := c.ovnClient.ListPortPairGroup(chainName)
+	ppgs, err := c.ovnClient.ListLogicalPortPairGroup(chainName)
 	if err != nil {
 		return err
 	}
 	for _, ppg := range ppgs {
-		if err := c.ovnClient.DelPortPairGroup(ppg); err != nil {
+		if err := c.ovnClient.DelLogicalPortPairGroup(ppg); err != nil {
 			return err
 		}
 	}

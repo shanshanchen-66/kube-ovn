@@ -44,17 +44,15 @@ type Controller struct {
 	updatePodQueue workqueue.RateLimitingInterface
 	podKeyMutex    *keymutex.KeyMutex
 
-	vnfGroupLister      kubeovnlister.VnfGroupLister
-	vnfGroupSynced      cache.InformerSynced
-	addVnfGroupQueue    workqueue.RateLimitingInterface
-	delVnfGroupQueue    workqueue.RateLimitingInterface
-	updateVnfGroupQueue workqueue.RateLimitingInterface
+	vnfGroupLister           kubeovnlister.VnfGroupLister
+	vnfGroupSynced           cache.InformerSynced
+	addOrUpdateVnfGroupQueue workqueue.RateLimitingInterface
+	delVnfGroupQueue         workqueue.RateLimitingInterface
 
 	sfcLister           kubeovnlister.SfcLister
 	sfcSynced           cache.InformerSynced
 	addOrUpdateSfcQueue workqueue.RateLimitingInterface
 	delSfcQueue         workqueue.RateLimitingInterface
-	updateSfcQueue      workqueue.RateLimitingInterface
 	sfcKeyMutex         *keymutex.KeyMutex
 
 	vpcsLister           kubeovnlister.VpcLister
@@ -162,17 +160,15 @@ func NewController(config *Configuration) *Controller {
 		delVpcQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVpc"),
 		updateVpcStatusQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateVpcStatus"),
 
-		vnfGroupLister:      vnfInformer.Lister(),
-		vnfGroupSynced:      vpcInformer.Informer().HasSynced,
-		addVnfGroupQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddVnf"),
-		delVnfGroupQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVnf"),
-		updateVnfGroupQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateVnf"),
+		vnfGroupLister:           vnfInformer.Lister(),
+		vnfGroupSynced:           vpcInformer.Informer().HasSynced,
+		addOrUpdateVnfGroupQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateVnf"),
+		delVnfGroupQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVnf"),
 
 		sfcLister:           sfcInformer.Lister(),
 		sfcSynced:           vpcInformer.Informer().HasSynced,
-		addOrUpdateSfcQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddSfc"),
+		addOrUpdateSfcQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateSfc"),
 		delSfcQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteSfc"),
-		updateSfcQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateSfc"),
 
 		subnetsLister:           subnetInformer.Lister(),
 		subnetSynced:            subnetInformer.Informer().HasSynced,
@@ -290,6 +286,12 @@ func NewController(config *Configuration) *Controller {
 		UpdateFunc: controller.enqueueUpdateVlan,
 	})
 
+	vnfInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.enqueueAddVnf,
+		DeleteFunc: controller.enqueueDelVnf,
+		UpdateFunc: controller.enqueueUpdateVnf,
+	})
+
 	sfcInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.enqueueAddVlan,
 		DeleteFunc: controller.enqueueDelVlan,
@@ -316,10 +318,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	c.kubeovnInformerFactory.Start(stopCh)
 
 	klog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.subnetSynced, c.ipSynced, c.vlanSynced, c.podsSynced, c.namespacesSynced, c.nodesSynced, c.serviceSynced, c.endpointsSynced, c.npsSynced, c.configMapsSynced); !ok {
-		klog.Fatalf("failed to wait for caches to sync")
-	}
-	if ok := cache.WaitForCacheSync(stopCh, c.vpcSynced, c.subnetSynced, c.ipSynced, c.vlanSynced, c.podsSynced, c.namespacesSynced, c.nodesSynced, c.serviceSynced, c.endpointsSynced, c.npsSynced, c.configMapsSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.vnfGroupSynced, c.sfcSynced, c.vpcSynced, c.subnetSynced, c.ipSynced, c.vlanSynced, c.podsSynced, c.namespacesSynced, c.nodesSynced, c.serviceSynced, c.endpointsSynced, c.npsSynced, c.configMapsSynced); !ok {
 		klog.Fatalf("failed to wait for caches to sync")
 	}
 
@@ -381,12 +380,20 @@ func (c *Controller) shutdown() {
 	c.addOrUpdateVpcQueue.ShutDown()
 	c.updateVpcStatusQueue.ShutDown()
 	c.delVpcQueue.ShutDown()
+
+	c.addOrUpdateSfcQueue.ShutDown()
+	c.delSfcQueue.ShutDown()
+
+	c.addOrUpdateVnfGroupQueue.ShutDown()
+	c.delVnfGroupQueue.ShutDown()
 }
 
 func (c *Controller) startWorkers(stopCh <-chan struct{}) {
 	klog.Info("Starting workers")
 
 	go wait.Until(c.runAddVpcWorker, time.Second, stopCh)
+	go wait.Until(c.runAddVnfGroupWorker, time.Second, stopCh)
+	go wait.Until(c.runAddSfcWorker, time.Second, stopCh)
 
 	// add default/join subnet and wait them ready
 	go wait.Until(c.runAddSubnetWorker, time.Second, stopCh)
@@ -456,6 +463,9 @@ func (c *Controller) startWorkers(stopCh <-chan struct{}) {
 
 		go wait.Until(c.runDelVlanWorker, time.Second, stopCh)
 		go wait.Until(c.runUpdateVlanWorker, time.Second, stopCh)
+
+		go wait.Until(c.runDelVnfGroupWorker, time.Second, stopCh)
+		go wait.Until(c.runDelSfcWorker, time.Second, stopCh)
 	}
 
 	go wait.Until(func() {

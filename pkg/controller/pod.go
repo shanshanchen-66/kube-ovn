@@ -712,10 +712,11 @@ func (c *Controller) reconcilePodClassifier(sfcName string) error {
 		c.podKeyMutex.Lock(key)
 		defer c.podKeyMutex.Unlock(key)
 
+		pccName := ovs.PodNameToClassifierName(pod.Name, sfc.Name)
 		if sfcIsNil {
 			klog.Infof("start to clean classifier of sfc %s.", sfcName)
 			pod.Annotations[util.SfcMd5Annotation] = ""
-			if err := c.ovnClient.DelChainClassifier(pod.Name); err != nil {
+			if err := c.ovnClient.DelPortChainClassifier(pccName); err != nil {
 				return err
 			}
 		} else {
@@ -725,10 +726,10 @@ func (c *Controller) reconcilePodClassifier(sfcName string) error {
 				continue
 			}
 
-			if err := c.ovnClient.DelChainClassifier(pod.Name); err != nil {
+			if err := c.ovnClient.DelPortChainClassifier(pccName); err != nil {
 				return err
 			}
-			if err := c.ovnClient.AddChainClassifier(pod.Name, sfc.Spec.Subnet, sfc.Name, ovs.PodNameToPortName(pod.Name, pod.Namespace),
+			if err := c.ovnClient.AddChainClassifier(pccName, sfc.Spec.Subnet, sfc.Name, ovs.PodNameToPortName(pod.Name, pod.Namespace),
 				"exit-lport", "bi-directional"); err != nil {
 				return err
 			}

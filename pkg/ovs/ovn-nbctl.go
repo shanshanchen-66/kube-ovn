@@ -1010,7 +1010,7 @@ func (c Client) CreatePortPair(name, ls, inPort, outPort string) error {
 	return nil
 }
 
-func (c Client) ListPortPair() ([]string, error) {
+func (c Client) ListLogicalPortPair() ([]string, error) {
 	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_pair")
 	if err != nil {
 		klog.Errorf("failed to list logical port pair %v", err)
@@ -1028,7 +1028,7 @@ func (c Client) ListPortPair() ([]string, error) {
 	return result, nil
 }
 
-func (c Client) DelPortPair(name string) error {
+func (c Client) DelLogicalPortPair(name string) error {
 	if _, err := c.ovnNbCommand(IfExists, "lsp-pair-del", name); err != nil {
 		klog.Errorf("create port pair %s failed %v", name, err)
 		return err
@@ -1078,7 +1078,7 @@ func (c Client) CreatePortPairGroup(name, chanName string, index int) error {
 	return nil
 }
 
-func (c Client) ListPortPairGroup(chain string) ([]string, error) {
+func (c Client) ListLogicalPortPairGroup(chain string) ([]string, error) {
 	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_pair_group")
 	if err != nil {
 		klog.Errorf("failed to list logical port pair group %v", err)
@@ -1088,16 +1088,15 @@ func (c Client) ListPortPairGroup(chain string) ([]string, error) {
 	result := make([]string, 0, len(lines))
 	for _, l := range lines {
 		l = strings.TrimSpace(l)
-		chainName := strings.TrimSuffix(l, "-ppg-")
-		l = strings.TrimSpace(l)
-		if chainName == chain && len(l) > 0 {
-			result = append(result, l)
+		if chain != "" && l == strings.TrimPrefix(l, chain+"-ppg-") {
+			continue
 		}
+		result = append(result, l)
 	}
 	return result, nil
 }
 
-func (c Client) DelPortPairGroup(name string) error {
+func (c Client) DelLogicalPortPairGroup(name string) error {
 	if _, err := c.ovnNbCommand(IfExists, "lsp-pair-group-del", name); err != nil {
 		klog.Errorf("delete port pair group %s failed %v", name, err)
 		return err
@@ -1139,7 +1138,7 @@ func (c Client) ListLogicalPortChainClassifier() ([]string, error) {
 	return result, nil
 }
 
-func (c Client) DelChainClassifier(name string) error {
+func (c Client) DelPortChainClassifier(name string) error {
 	if _, err := c.ovnNbCommand(IfExists, "lsp-chain-classifier-del", name); err != nil {
 		klog.Errorf("delete classifier %s failed %v", name, err)
 		return err

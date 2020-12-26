@@ -13,6 +13,10 @@ func PodNameToPortName(pod, namespace string) string {
 	return fmt.Sprintf("%s.%s", pod, namespace)
 }
 
+func PodNameToClassifierName(pod, chainName string) string {
+	return fmt.Sprintf("%s-pcc-%s", chainName, pod)
+}
+
 func PodNameToLocalnetName(subnet string) string {
 	return fmt.Sprintf("localnet.%s", subnet)
 }

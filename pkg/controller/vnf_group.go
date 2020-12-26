@@ -15,6 +15,16 @@ import (
 	"k8s.io/klog"
 )
 
+func (c *Controller) runAddVnfGroupWorker() {
+	for c.processNextAddOrUpdateVnfWorkItem() {
+	}
+}
+
+func (c *Controller) runDelVnfGroupWorker() {
+	for c.processNextDelVnfWorkItem() {
+	}
+}
+
 func (c *Controller) enqueueAddVnf(obj interface{}) {
 	if !c.isLeader() {
 		return
@@ -26,7 +36,7 @@ func (c *Controller) enqueueAddVnf(obj interface{}) {
 		return
 	}
 	klog.V(3).Infof("enqueue add vnf %s", key)
-	c.addVnfGroupQueue.Add(key)
+	c.addOrUpdateVnfGroupQueue.Add(key)
 }
 
 func (c *Controller) enqueueUpdateVnf(old, new interface{}) {
@@ -44,14 +54,14 @@ func (c *Controller) enqueueUpdateVnf(old, new interface{}) {
 	}
 
 	if !newVnf.DeletionTimestamp.IsZero() {
-		c.updateVnfGroupQueue.Add(key)
+		c.addOrUpdateVnfGroupQueue.Add(key)
 		return
 	}
 
 	if !reflect.DeepEqual(oldVnf.Spec.Subnet, newVnf.Spec.Subnet) ||
 		!reflect.DeepEqual(oldVnf.Spec.Ips, newVnf.Spec.Ips) {
 		klog.V(3).Infof("enqueue update vnf %s", key)
-		c.addOrUpdateVpcQueue.Add(key)
+		c.addOrUpdateVnfGroupQueue.Add(key)
 	}
 }
 
@@ -69,26 +79,26 @@ func (c *Controller) enqueueDelVnf(obj interface{}) {
 	c.delVnfGroupQueue.Add(key)
 }
 
-func (c *Controller) processNextAddVnfWorkItem() bool {
-	obj, shutdown := c.addVnfGroupQueue.Get()
+func (c *Controller) processNextAddOrUpdateVnfWorkItem() bool {
+	obj, shutdown := c.addOrUpdateVnfGroupQueue.Get()
 	if shutdown {
 		return false
 	}
 
 	err := func(obj interface{}) error {
-		defer c.addVnfGroupQueue.Done(obj)
+		defer c.addOrUpdateVnfGroupQueue.Done(obj)
 		var key string
 		var ok bool
 		if key, ok = obj.(string); !ok {
-			c.addVnfGroupQueue.Forget(obj)
+			c.addOrUpdateVnfGroupQueue.Forget(obj)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
 		if err := c.handleAddOrUpdateVnfGroup(key); err != nil {
-			c.addVnfGroupQueue.AddRateLimited(key)
+			c.addOrUpdateVnfGroupQueue.AddRateLimited(key)
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
-		c.addVnfGroupQueue.Forget(obj)
+		c.addOrUpdateVnfGroupQueue.Forget(obj)
 		return nil
 	}(obj)
 
@@ -187,7 +197,7 @@ func (c *Controller) handleAddOrUpdateVnfGroup(key string) error {
 	// clean invalid port pair
 	for _, port := range vnfGroup.Status.Ports {
 		if !util.ContainsString(newVnfPorts, port) {
-			if err = c.ovnClient.DelPortPair(genPortPairName(vnfGroup.Name, port)); err != nil {
+			if err = c.ovnClient.DelLogicalPortPair(genPortPairName(vnfGroup.Name, port)); err != nil {
 				return err
 			}
 		}
@@ -226,7 +236,7 @@ func genPortPairName(vnfGroupName, port string) string {
 
 func (c *Controller) handleDelVnfGroup(vnfGroup *kubeovnv1.VnfGroup) error {
 	for _, port := range vnfGroup.Status.Ports {
-		if err := c.ovnClient.DelPortPair(genPortPairName(vnfGroup.Name, port)); err != nil {
+		if err := c.ovnClient.DelLogicalPortPair(genPortPairName(vnfGroup.Name, port)); err != nil {
 			return err
 		}
 	}

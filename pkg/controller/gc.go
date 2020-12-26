@@ -363,3 +363,126 @@ func (c *Controller) gcStaticRoute() error {
 	}
 	return nil
 }
+
+func (c *Controller) gcPortChainClassifier() error {
+	klog.Infof("start to gc static port chain classifier")
+	sfcs, err := c.sfcLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to list sfc, %v", err)
+		return err
+	}
+	sfcNames := make([]string, 0, len(sfcs))
+	for _, sfc := range sfcs {
+		sfcNames = append(sfcNames, sfc.Name)
+	}
+
+	pccs, err := c.ovnClient.ListLogicalPortChainClassifier()
+	if err != nil {
+		klog.Errorf("failed to list port chain classifier %v", err)
+		return err
+	}
+	for _, pcc := range pccs {
+		result := strings.Split(pcc, "-pcc-")
+		if len(result) == 2 && util.ContainsString(sfcNames, result[0]) {
+			continue
+		}
+		if err := c.ovnClient.DelPortChainClassifier(pcc); err != nil {
+			klog.Errorf("failed to delete classifier %s , %v", pcc, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) gcPortPairGroup() error {
+	klog.Infof("start to gc static port pair group")
+	vgs, err := c.vnfGroupLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to list sfc, %v", err)
+		return err
+	}
+	vgNames := make([]string, 0, len(vgs))
+	for _, vg := range vgs {
+		vgNames = append(vgNames, vg.Name)
+	}
+
+	ppgs, err := c.ovnClient.ListLogicalPortPairGroup("")
+	if err != nil {
+		klog.Errorf("failed to list port pair group %v", err)
+		return err
+	}
+	for _, ppg := range ppgs {
+		result := strings.Split(ppg, "-ppg-")
+		if len(result) == 2 && util.ContainsString(vgNames, result[1]) {
+			continue
+		}
+		if err := c.ovnClient.DelLogicalPortPairGroup(ppg); err != nil {
+			klog.Errorf("failed to delete port pair group %s , %v", ppg, err)
+			return err
+		}
+
+	}
+	return nil
+}
+
+func (c *Controller) gcPortPair() error {
+	klog.Infof("start to gc static port pair group")
+	pps, err := c.ovnClient.ListLogicalPortPair()
+	if err != nil {
+		klog.Errorf("failed to list port pair, %v", err)
+		return err
+	}
+
+	vgs, err := c.vnfGroupLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to list sfc, %v", err)
+		return err
+	}
+
+	var specPortPairs []string
+	for _, vg := range vgs {
+		for _, port := range vg.Status.Ports {
+			specPortPairs = append(specPortPairs, genPortPairName(vg.Name, port))
+		}
+	}
+
+	for _, pp := range pps {
+		if util.ContainsString(specPortPairs, pp) {
+			continue
+		}
+		if err := c.ovnClient.DelLogicalPortPair(pp); err != nil {
+			klog.Errorf("failed to delete port pair %s , %v", pp, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) gcChain() error {
+	sfcs, err := c.sfcLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("failed to list sfc, %v", err)
+		return err
+	}
+	sfcNames := make([]string, 0, len(sfcs))
+	for _, sfc := range sfcs {
+		sfcNames = append(sfcNames, sfc.Name)
+	}
+
+	pcs, err := c.ovnClient.ListPortChain()
+	if err != nil {
+		klog.Errorf("failed to list port chain, %v", err)
+		return err
+	}
+
+	for _, pc := range pcs {
+		if util.ContainsString(sfcNames, pc) {
+			continue
+		}
+		if err := c.ovnClient.DelChain(pc); err != nil {
+			klog.Errorf("failed to delete port chain %s, %v", pc, err)
+			return err
+		}
+	}
+	return nil
+}
