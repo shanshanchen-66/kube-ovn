@@ -44,6 +44,19 @@ type Controller struct {
 	updatePodQueue workqueue.RateLimitingInterface
 	podKeyMutex    *keymutex.KeyMutex
 
+	vnfGroupLister      kubeovnlister.VnfGroupLister
+	vnfGroupSynced      cache.InformerSynced
+	addVnfGroupQueue    workqueue.RateLimitingInterface
+	delVnfGroupQueue    workqueue.RateLimitingInterface
+	updateVnfGroupQueue workqueue.RateLimitingInterface
+
+	sfcLister           kubeovnlister.SfcLister
+	sfcSynced           cache.InformerSynced
+	addOrUpdateSfcQueue workqueue.RateLimitingInterface
+	delSfcQueue         workqueue.RateLimitingInterface
+	updateSfcQueue      workqueue.RateLimitingInterface
+	sfcKeyMutex         *keymutex.KeyMutex
+
 	vpcsLister           kubeovnlister.VpcLister
 	vpcSynced            cache.InformerSynced
 	addOrUpdateVpcQueue  workqueue.RateLimitingInterface
@@ -135,6 +148,8 @@ func NewController(config *Configuration) *Controller {
 	endpointInformer := informerFactory.Core().V1().Endpoints()
 	npInformer := informerFactory.Networking().V1().NetworkPolicies()
 	configMapInformer := cmInformerFactory.Core().V1().ConfigMaps()
+	sfcInformer := kubeovnInformerFactory.Kubeovn().V1().Sfcs()
+	vnfInformer := kubeovnInformerFactory.Kubeovn().V1().VnfGroups()
 
 	controller := &Controller{
 		config:    config,
@@ -146,6 +161,18 @@ func NewController(config *Configuration) *Controller {
 		addOrUpdateVpcQueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateVpc"),
 		delVpcQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVpc"),
 		updateVpcStatusQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateVpcStatus"),
+
+		vnfGroupLister:      vnfInformer.Lister(),
+		vnfGroupSynced:      vpcInformer.Informer().HasSynced,
+		addVnfGroupQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddVnf"),
+		delVnfGroupQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVnf"),
+		updateVnfGroupQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateVnf"),
+
+		sfcLister:           sfcInformer.Lister(),
+		sfcSynced:           vpcInformer.Informer().HasSynced,
+		addOrUpdateSfcQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddSfc"),
+		delSfcQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteSfc"),
+		updateSfcQueue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateSfc"),
 
 		subnetsLister:           subnetInformer.Lister(),
 		subnetSynced:            subnetInformer.Informer().HasSynced,
@@ -258,6 +285,12 @@ func NewController(config *Configuration) *Controller {
 	})
 
 	vlanInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.enqueueAddVlan,
+		DeleteFunc: controller.enqueueDelVlan,
+		UpdateFunc: controller.enqueueUpdateVlan,
+	})
+
+	sfcInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.enqueueAddVlan,
 		DeleteFunc: controller.enqueueDelVlan,
 		UpdateFunc: controller.enqueueUpdateVlan,

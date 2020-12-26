@@ -32,12 +32,20 @@ func (c *FakeKubeovnV1) IPs() v1.IPInterface {
 	return &FakeIPs{c}
 }
 
+func (c *FakeKubeovnV1) Sfcs() v1.SfcInterface {
+	return &FakeSfcs{c}
+}
+
 func (c *FakeKubeovnV1) Subnets() v1.SubnetInterface {
 	return &FakeSubnets{c}
 }
 
 func (c *FakeKubeovnV1) Vlans() v1.VlanInterface {
 	return &FakeVlans{c}
+}
+
+func (c *FakeKubeovnV1) VnfGroups() v1.VnfGroupInterface {
+	return &FakeVnfGroups{c}
 }
 
 func (c *FakeKubeovnV1) Vpcs() v1.VpcInterface {

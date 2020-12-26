@@ -272,3 +272,126 @@ type VpcList struct {
 
 	Items []Vpc `json:"items"`
 }
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +genclient:nonNamespaced
+
+type VnfGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   VnfGroupSpec   `json:"spec"`
+	Status VnfGroupStatus `json:"status,omitempty"`
+}
+
+type VnfGroupSpec struct {
+	Ips    []string `json:"ip,omitempty"`
+	Subnet string   `json:"subnet,omitempty"`
+}
+
+type VnfGroupStatus struct {
+	// Conditions represents the latest state of the object
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	Conditions []VnfGroupCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	Subnet string   `json:"subnet,omitempty"`
+	Ports  []string `json:"port,omitempty"`
+}
+
+// Condition describes the state of an object at a certain point.
+// +k8s:deepcopy-gen=true
+type VnfGroupCondition struct {
+	// Type of condition.
+	Type ConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus `json:"status"`
+	// The reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// A human readable message indicating details about the transition.
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Last time the condition was probed
+	// +optional
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+	// Last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type VnfGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []VnfGroup `json:"items"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +genclient:nonNamespaced
+
+type Sfc struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   SfcSpec   `json:"spec"`
+	Status SfcStatus `json:"status,omitempty"`
+}
+
+type SfcSpec struct {
+	VnfGroups []string `json:"vnfGroups,omitempty"`
+	Subnet    string   `json:"subnet,omitempty"`
+}
+
+type SfcStatus struct {
+	// Conditions represents the latest state of the object
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	Conditions []SfcCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	ChainExist    bool            `json:"chainExist,omitempty"`
+	Subnet        string          `json:"subnet,omitempty"`
+	Md5           string          `json:"md5,omitempty"`
+	VnfGroupPorts []*VnfGroupPort `json:"vnfGroupPorts,omitempty"`
+}
+
+type VnfGroupPort struct {
+	GroupName string   `json:"groupName,omitempty"`
+	Ports     []string `json:"ports,omitempty"`
+}
+
+// Condition describes the state of an object at a certain point.
+// +k8s:deepcopy-gen=true
+type SfcCondition struct {
+	// Type of condition.
+	Type ConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status corev1.ConditionStatus `json:"status"`
+	// The reason for the condition's last transition.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// A human readable message indicating details about the transition.
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Last time the condition was probed
+	// +optional
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+	// Last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type SfcList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []Sfc `json:"items"`
+}

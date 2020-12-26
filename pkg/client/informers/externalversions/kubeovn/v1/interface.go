@@ -26,10 +26,14 @@ import (
 type Interface interface {
 	// IPs returns a IPInformer.
 	IPs() IPInformer
+	// Sfcs returns a SfcInformer.
+	Sfcs() SfcInformer
 	// Subnets returns a SubnetInformer.
 	Subnets() SubnetInformer
 	// Vlans returns a VlanInformer.
 	Vlans() VlanInformer
+	// VnfGroups returns a VnfGroupInformer.
+	VnfGroups() VnfGroupInformer
 	// Vpcs returns a VpcInformer.
 	Vpcs() VpcInformer
 }
@@ -50,6 +54,11 @@ func (v *version) IPs() IPInformer {
 	return &iPInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
+// Sfcs returns a SfcInformer.
+func (v *version) Sfcs() SfcInformer {
+	return &sfcInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
 // Subnets returns a SubnetInformer.
 func (v *version) Subnets() SubnetInformer {
 	return &subnetInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
@@ -58,6 +67,11 @@ func (v *version) Subnets() SubnetInformer {
 // Vlans returns a VlanInformer.
 func (v *version) Vlans() VlanInformer {
 	return &vlanInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// VnfGroups returns a VnfGroupInformer.
+func (v *version) VnfGroups() VnfGroupInformer {
+	return &vnfGroupInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // Vpcs returns a VpcInformer.

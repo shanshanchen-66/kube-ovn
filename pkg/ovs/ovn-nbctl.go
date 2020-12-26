@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -998,5 +999,150 @@ func (c Client) CreateLocalnetPort(ls, port, providerName, vlanID string) error 
 		return err
 	}
 
+	return nil
+}
+
+func (c Client) CreatePortPair(name, ls, inPort, outPort string) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-pair-add", ls, inPort, outPort, name); err != nil {
+		klog.Errorf("create port pair %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) ListPortPair() ([]string, error) {
+	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_pair")
+	if err != nil {
+		klog.Errorf("failed to list logical port pair %v", err)
+		return nil, err
+	}
+	lines := strings.Split(output, "\n")
+	result := make([]string, 0, len(lines))
+	for _, l := range lines {
+
+		l = strings.TrimSpace(l)
+		if len(l) > 0 {
+			result = append(result, l)
+		}
+	}
+	return result, nil
+}
+
+func (c Client) DelPortPair(name string) error {
+	if _, err := c.ovnNbCommand(IfExists, "lsp-pair-del", name); err != nil {
+		klog.Errorf("create port pair %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) CreateChain(name, ls string) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-add", ls, name); err != nil {
+		klog.Errorf("create chain %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) ListPortChain() ([]string, error) {
+	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_chain")
+	if err != nil {
+		klog.Errorf("failed to list logical port chain %v", err)
+		return nil, err
+	}
+	lines := strings.Split(output, "\n")
+	result := make([]string, 0, len(lines))
+	for _, l := range lines {
+
+		l = strings.TrimSpace(l)
+		if len(l) > 0 {
+			result = append(result, l)
+		}
+	}
+	return result, nil
+}
+
+func (c Client) DelChain(name string) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-del", name); err != nil {
+		klog.Errorf("delete chain %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) CreatePortPairGroup(name, chanName string, index int) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-pair-group-add", chanName, name, strconv.Itoa(index)); err != nil {
+		klog.Errorf("create pair group %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) ListPortPairGroup(chain string) ([]string, error) {
+	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_pair_group")
+	if err != nil {
+		klog.Errorf("failed to list logical port pair group %v", err)
+		return nil, err
+	}
+	lines := strings.Split(output, "\n")
+	result := make([]string, 0, len(lines))
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		chainName := strings.TrimSuffix(l, "-ppg-")
+		l = strings.TrimSpace(l)
+		if chainName == chain && len(l) > 0 {
+			result = append(result, l)
+		}
+	}
+	return result, nil
+}
+
+func (c Client) DelPortPairGroup(name string) error {
+	if _, err := c.ovnNbCommand(IfExists, "lsp-pair-group-del", name); err != nil {
+		klog.Errorf("delete port pair group %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) AddPortPairToGroup(portGroup, portPair string) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-pair-group-add-port-pair", portGroup, portPair); err != nil {
+		klog.Errorf("add port pair to group failed %v", err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) AddChainClassifier(name, ls, chain, port, direction, path string) error {
+	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-classifier-add", ls, chain, port, direction, path, name, ""); err != nil {
+		klog.Errorf("add classifier %s failed %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func (c Client) ListLogicalPortChainClassifier() ([]string, error) {
+	output, err := c.ovnNbCommand("--format=csv", "--data=bare", "--no-heading", "--columns=name", "find", "logical_port_chain_classifier")
+	if err != nil {
+		klog.Errorf("failed to list logical port pair group %v", err)
+		return nil, err
+	}
+	lines := strings.Split(output, "\n")
+	result := make([]string, 0, len(lines))
+	for _, l := range lines {
+
+		l = strings.TrimSpace(l)
+		if len(l) > 0 {
+			result = append(result, l)
+		}
+	}
+	return result, nil
+}
+
+func (c Client) DelChainClassifier(name string) error {
+	if _, err := c.ovnNbCommand(IfExists, "lsp-chain-classifier-del", name); err != nil {
+		klog.Errorf("delete classifier %s failed %v", name, err)
+		return err
+	}
 	return nil
 }

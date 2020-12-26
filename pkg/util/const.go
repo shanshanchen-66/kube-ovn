@@ -13,6 +13,8 @@ const (
 	BgpAnnotation        = "ovn.kubernetes.io/bgp"
 	SnatAnnotation       = "ovn.kubernetes.io/snat"
 	EipAnnotation        = "ovn.kubernetes.io/eip"
+	SfcAnnotation        = "ovn.kubernetes.io/sfc"
+	SfcMd5Annotation     = "ovn.kubernetes.io/sfc_md5"
 
 	PortSecurityAnnotation = "ovn.kubernetes.io/port_security"
 	NorthGatewayAnnotation = "ovn.kubernetes.io/north_gateway"

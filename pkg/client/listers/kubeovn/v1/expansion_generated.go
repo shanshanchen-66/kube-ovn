@@ -22,6 +22,10 @@ package v1
 // IPLister.
 type IPListerExpansion interface{}
 
+// SfcListerExpansion allows custom methods to be added to
+// SfcLister.
+type SfcListerExpansion interface{}
+
 // SubnetListerExpansion allows custom methods to be added to
 // SubnetLister.
 type SubnetListerExpansion interface{}
@@ -29,6 +33,10 @@ type SubnetListerExpansion interface{}
 // VlanListerExpansion allows custom methods to be added to
 // VlanLister.
 type VlanListerExpansion interface{}
+
+// VnfGroupListerExpansion allows custom methods to be added to
+// VnfGroupLister.
+type VnfGroupListerExpansion interface{}
 
 // VpcListerExpansion allows custom methods to be added to
 // VpcLister.

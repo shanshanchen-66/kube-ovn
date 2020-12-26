@@ -693,6 +693,60 @@ func (c *Controller) acquireAddress(pod *v1.Pod, subnet *kubeovnv1.Subnet) (stri
 	return "", "", ipam.NoAvailableError
 }
 
+func (c *Controller) reconcilePodClassifier(sfcName string) error {
+	pods, err := c.podsLister.List(labels.Everything())
+	if err != nil {
+		klog.Error("list pod failed.", err)
+		return err
+	}
+
+	sfcIsNil := false
+	sfc, err := c.sfcLister.Get(sfcName)
+	if err != nil {
+		sfcIsNil = true
+		klog.Infof("sfc %s is nil.", sfcName)
+	}
+
+	for _, pod := range pods {
+		key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+		c.podKeyMutex.Lock(key)
+		defer c.podKeyMutex.Unlock(key)
+
+		if sfcIsNil {
+			klog.Infof("start to clean classifier of sfc %s.", sfcName)
+			pod.Annotations[util.SfcMd5Annotation] = ""
+			if err := c.ovnClient.DelChainClassifier(pod.Name); err != nil {
+				return err
+			}
+		} else {
+			sfcName := pod.Annotations[util.SfcAnnotation]
+			sfcMd5 := pod.Annotations[util.SfcMd5Annotation]
+			if sfcName == "" || sfcMd5 == sfc.Status.Md5 {
+				continue
+			}
+
+			if err := c.ovnClient.DelChainClassifier(pod.Name); err != nil {
+				return err
+			}
+			if err := c.ovnClient.AddChainClassifier(pod.Name, sfc.Spec.Subnet, sfc.Name, ovs.PodNameToPortName(pod.Name, pod.Namespace),
+				"exit-lport", "bi-directional"); err != nil {
+				return err
+			}
+			pod.Annotations[util.SfcMd5Annotation] = sfc.Status.Md5
+		}
+
+		if _, err := c.config.KubeClient.CoreV1().Pods(pod.Namespace).Patch(pod.Name, types.JSONPatchType, generatePatchPayload(pod.Annotations, "replace")); err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			} else {
+				klog.Errorf("patch pod %s/%s failed %v", pod.Name, pod.Namespace, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func generatePatchPayload(annotations map[string]string, op string) []byte {
 	patchPayloadTemplate :=
 		`[{

@@ -131,6 +131,151 @@ cat <<EOF > kube-ovn-crd.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  name: sfcs.kubeovn.io
+spec:
+  conversion:
+    strategy: None
+  group: kubeovn.io
+  names:
+    kind: Sfc
+    listKind: SfcList
+    plural: sfcs
+    shortNames:
+    - sfc
+    singular: sfc
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.vnfGroups
+      name: VnfGroups
+      type: string
+    - jsonPath: .spec.subnet
+      name: Subnet
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              subnet:
+                type: string
+              vnfGroups:
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            properties:
+              chainExist:
+                type: boolean
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      type: string
+                    lastUpdateTime:
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+              md5:
+                type: string
+              portRecords:
+                items:
+                  properties:
+                    groupName:
+                      type: string
+                    ports:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: vnfgroups.kubeovn.io
+spec:
+  conversion:
+    strategy: None
+  group: kubeovn.io
+  names:
+    kind: VnfGroup
+    listKind: VnfGroupList
+    plural: vnfgroups
+    shortNames:
+    - vg
+    singular: vnfgroup
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.subnet
+      name: subnet
+      type: string
+    - jsonPath: .spec.ips
+      name: ips
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              ips:
+                items:
+                  type: string
+                type: array
+              subnet:
+                type: string
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      type: string
+                    lastUpdateTime:
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+              ports:
+                items:
+                  type: string
+                type: array
+              subnet:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
   name: vpcs.kubeovn.io
 spec:
   group: kubeovn.io
@@ -934,6 +1079,10 @@ rules:
   - apiGroups:
       - "kubeovn.io"
     resources:
+      - vnfs
+      - vnfs/status
+      - sfcs
+      - sfcs/status
       - vpcs
       - vpcs/status
       - subnets
@@ -1847,6 +1996,8 @@ vsctl(){
 }
 
 diagnose(){
+  kubectl get crd sfcs.kubeovn.io
+  kubectl get crd vnfs.kubeovn.io
   kubectl get crd vpcs.kubeovn.io
   kubectl get crd subnets.kubeovn.io
   kubectl get crd ips.kubeovn.io

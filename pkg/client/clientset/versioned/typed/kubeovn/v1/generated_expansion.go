@@ -20,8 +20,12 @@ package v1
 
 type IPExpansion interface{}
 
+type SfcExpansion interface{}
+
 type SubnetExpansion interface{}
 
 type VlanExpansion interface{}
+
+type VnfGroupExpansion interface{}
 
 type VpcExpansion interface{}

@@ -27,8 +27,10 @@ import (
 type KubeovnV1Interface interface {
 	RESTClient() rest.Interface
 	IPsGetter
+	SfcsGetter
 	SubnetsGetter
 	VlansGetter
+	VnfGroupsGetter
 	VpcsGetter
 }
 
@@ -41,12 +43,20 @@ func (c *KubeovnV1Client) IPs() IPInterface {
 	return newIPs(c)
 }
 
+func (c *KubeovnV1Client) Sfcs() SfcInterface {
+	return newSfcs(c)
+}
+
 func (c *KubeovnV1Client) Subnets() SubnetInterface {
 	return newSubnets(c)
 }
 
 func (c *KubeovnV1Client) Vlans() VlanInterface {
 	return newVlans(c)
+}
+
+func (c *KubeovnV1Client) VnfGroups() VnfGroupInterface {
+	return newVnfGroups(c)
 }
 
 func (c *KubeovnV1Client) Vpcs() VpcInterface {
