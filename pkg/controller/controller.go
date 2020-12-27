@@ -53,7 +53,6 @@ type Controller struct {
 	sfcSynced           cache.InformerSynced
 	addOrUpdateSfcQueue workqueue.RateLimitingInterface
 	delSfcQueue         workqueue.RateLimitingInterface
-	sfcKeyMutex         *keymutex.KeyMutex
 
 	vpcsLister           kubeovnlister.VpcLister
 	vpcSynced            cache.InformerSynced

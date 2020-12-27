@@ -141,9 +141,6 @@ func (c *Controller) processNextDelSfcWorkItem() bool {
 }
 
 func (c *Controller) handleAddOrUpdateSfc(key string) error {
-	c.sfcKeyMutex.Lock(key)
-	defer c.sfcKeyMutex.Unlock(key)
-
 	sfc, err := c.sfcLister.Get(key)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -259,9 +256,6 @@ func (c *Controller) reconcileSfcs(vnfGroup *kubeovnv1.VnfGroup) error {
 	}
 
 	for _, sfc := range sfcs {
-		c.sfcKeyMutex.Lock(sfc.Name)
-		defer c.sfcKeyMutex.Unlock(sfc.Name)
-
 		if !sfc.Status.ChainExist || vnfGroup.Spec.Subnet != sfc.Spec.Subnet || !util.ContainsString(sfc.Spec.VnfGroups, vnfGroup.Name) {
 			continue
 		}
@@ -277,8 +271,6 @@ func (c *Controller) reconcileSfcs(vnfGroup *kubeovnv1.VnfGroup) error {
 }
 
 func (c *Controller) handleDelSfc(key string) error {
-	c.sfcKeyMutex.Lock(key)
-	defer c.sfcKeyMutex.Unlock(key)
 	if err := c.reconcilePodClassifier(key); err != nil {
 		return err
 	}
