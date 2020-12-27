@@ -293,9 +293,9 @@ func NewController(config *Configuration) *Controller {
 	})
 
 	sfcInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.enqueueAddVlan,
-		DeleteFunc: controller.enqueueDelVlan,
-		UpdateFunc: controller.enqueueUpdateVlan,
+		AddFunc:    controller.enqueueAddSfc,
+		DeleteFunc: controller.enqueueDelSfc,
+		UpdateFunc: controller.enqueueUpdateSfc,
 	})
 
 	return controller
