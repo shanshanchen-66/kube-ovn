@@ -161,12 +161,12 @@ func NewController(config *Configuration) *Controller {
 		updateVpcStatusQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "UpdateVpcStatus"),
 
 		vnfGroupLister:           vnfInformer.Lister(),
-		vnfGroupSynced:           vpcInformer.Informer().HasSynced,
+		vnfGroupSynced:           vnfInformer.Informer().HasSynced,
 		addOrUpdateVnfGroupQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateVnf"),
 		delVnfGroupQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVnf"),
 
 		sfcLister:           sfcInformer.Lister(),
-		sfcSynced:           vpcInformer.Informer().HasSynced,
+		sfcSynced:           sfcInformer.Informer().HasSynced,
 		addOrUpdateSfcQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateSfc"),
 		delSfcQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteSfc"),
 
