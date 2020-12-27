@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	kubeovnv1 "github.com/alauda/kube-ovn/pkg/apis/kubeovn/v1"
 	"github.com/alauda/kube-ovn/pkg/ipam"
@@ -35,7 +36,7 @@ func (c *Controller) enqueueAddVnf(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	}
-	klog.V(3).Infof("enqueue add vnf %s", key)
+	klog.V(3).Infof("enqueue add vnfGroup %s", key)
 	c.addOrUpdateVnfGroupQueue.Add(key)
 }
 
@@ -117,16 +118,16 @@ func (c *Controller) processNextDelVnfWorkItem() bool {
 
 	err := func(obj interface{}) error {
 		defer c.delVnfGroupQueue.Done(obj)
-		var vnf *kubeovnv1.VnfGroup
+		var vnfGroupName string
 		var ok bool
-		if vnf, ok = obj.(*kubeovnv1.VnfGroup); !ok {
+		if vnfGroupName, ok = obj.(string); !ok {
 			c.delVnfGroupQueue.Forget(obj)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
-		if err := c.handleDelVnfGroup(vnf); err != nil {
+		if err := c.handleDelVnfGroup(vnfGroupName); err != nil {
 			c.delVnfGroupQueue.AddRateLimited(obj)
-			return fmt.Errorf("error syncing '%s': %s, requeuing", vnf.Name, err.Error())
+			return fmt.Errorf("error syncing '%s': %s, requeuing", vnfGroupName, err.Error())
 		}
 		c.delVnfGroupQueue.Forget(obj)
 		return nil
@@ -231,18 +232,25 @@ func (c *Controller) handleAddOrUpdateVnfGroup(key string) error {
 }
 
 func genPortPairName(vnfGroupName, port string) string {
-	return fmt.Sprintf("%s.%s", vnfGroupName, port)
+	return fmt.Sprintf("%s-pp-%s", vnfGroupName, port)
 }
 
-func (c *Controller) handleDelVnfGroup(vnfGroup *kubeovnv1.VnfGroup) error {
-	for _, port := range vnfGroup.Status.Ports {
-		if err := c.ovnClient.DelLogicalPortPair(genPortPairName(vnfGroup.Name, port)); err != nil {
-			return err
-		}
-	}
-	vnfGroup.Status.Ports = nil
-	if err := c.reconcileSfcs(vnfGroup); err != nil {
+func (c *Controller) handleDelVnfGroup(key string) error {
+	klog.Infof("start to gc port pair")
+	pps, err := c.ovnClient.ListLogicalPortPair()
+	if err != nil {
+		klog.Errorf("failed to list port pair, %v", err)
 		return err
+	}
+
+	for _, pp := range pps {
+		result := strings.Split(pp, "-pp-")
+		if len(result) != 2 || result[0] == key {
+			if err := c.ovnClient.DelLogicalPortPair(pp); err != nil {
+				klog.Errorf("failed to delete port pair %s , %v", pp, err)
+				return err
+			}
+		}
 	}
 	return nil
 }

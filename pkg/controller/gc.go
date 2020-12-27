@@ -27,7 +27,7 @@ func (c *Controller) gc() error {
 		c.gcStaticRoute,
 		c.gcPortChainClassifier,
 		c.gcPortPairGroup,
-		c.gcChain,
+		c.gcPortChain,
 		c.gcPortPair,
 	}
 	for _, gcFunc := range gcFunctions {
@@ -399,7 +399,7 @@ func (c *Controller) gcPortChainClassifier() error {
 }
 
 func (c *Controller) gcPortPairGroup() error {
-	klog.Infof("start to gc static port pair group")
+	klog.Infof("start to gc port pair group")
 	vgs, err := c.vnfGroupLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("failed to list sfc, %v", err)
@@ -430,7 +430,7 @@ func (c *Controller) gcPortPairGroup() error {
 }
 
 func (c *Controller) gcPortPair() error {
-	klog.Infof("start to gc static port pair group")
+	klog.Infof("start to gc port pair")
 	pps, err := c.ovnClient.ListLogicalPortPair()
 	if err != nil {
 		klog.Errorf("failed to list port pair, %v", err)
@@ -462,7 +462,8 @@ func (c *Controller) gcPortPair() error {
 	return nil
 }
 
-func (c *Controller) gcChain() error {
+func (c *Controller) gcPortChain() error {
+	klog.Infof("start to gc static port chain")
 	sfcs, err := c.sfcLister.List(labels.Everything())
 	if err != nil {
 		klog.Errorf("failed to list sfc, %v", err)
