@@ -225,8 +225,8 @@ func (in *SfcStatus) DeepCopyInto(out *SfcStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.VnfGroupPorts != nil {
-		in, out := &in.VnfGroupPorts, &out.VnfGroupPorts
+	if in.PortRecords != nil {
+		in, out := &in.PortRecords, &out.PortRecords
 		*out = make([]*VnfGroupPort, len(*in))
 		for i := range *in {
 			if (*in)[i] != nil {

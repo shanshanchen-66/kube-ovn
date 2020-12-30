@@ -1036,7 +1036,7 @@ func (c Client) DelLogicalPortPair(name string) error {
 	return nil
 }
 
-func (c Client) CreateChain(name, ls string) error {
+func (c Client) CreatePortChain(name, ls string) error {
 	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-add", ls, name); err != nil {
 		klog.Errorf("create chain %s failed %v", name, err)
 		return err
@@ -1062,8 +1062,8 @@ func (c Client) ListPortChain() ([]string, error) {
 	return result, nil
 }
 
-func (c Client) DelChain(name string) error {
-	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-del", name); err != nil {
+func (c Client) DelPortChain(name string) error {
+	if _, err := c.ovnNbCommand(IfExists, "lsp-chain-del", name); err != nil {
 		klog.Errorf("delete chain %s failed %v", name, err)
 		return err
 	}
@@ -1112,7 +1112,7 @@ func (c Client) AddPortPairToGroup(portGroup, portPair string) error {
 	return nil
 }
 
-func (c Client) AddChainClassifier(name, ls, chain, port, direction, path string) error {
+func (c Client) AddPortChainClassifier(name, ls, chain, port, direction, path string) error {
 	if _, err := c.ovnNbCommand(MayExist, "lsp-chain-classifier-add", ls, chain, port, direction, path, name, ""); err != nil {
 		klog.Errorf("add classifier %s failed %v", name, err)
 		return err

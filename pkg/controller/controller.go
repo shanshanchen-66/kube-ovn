@@ -48,11 +48,13 @@ type Controller struct {
 	vnfGroupSynced           cache.InformerSynced
 	addOrUpdateVnfGroupQueue workqueue.RateLimitingInterface
 	delVnfGroupQueue         workqueue.RateLimitingInterface
+	vnfGroupKeyMutex         *keymutex.KeyMutex
 
 	sfcLister           kubeovnlister.SfcLister
 	sfcSynced           cache.InformerSynced
 	addOrUpdateSfcQueue workqueue.RateLimitingInterface
 	delSfcQueue         workqueue.RateLimitingInterface
+	sfcKeyMutex         *keymutex.KeyMutex
 
 	vpcsLister           kubeovnlister.VpcLister
 	vpcSynced            cache.InformerSynced
@@ -163,11 +165,13 @@ func NewController(config *Configuration) *Controller {
 		vnfGroupSynced:           vnfInformer.Informer().HasSynced,
 		addOrUpdateVnfGroupQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateVnf"),
 		delVnfGroupQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteVnf"),
+		vnfGroupKeyMutex:         keymutex.New(97),
 
 		sfcLister:           sfcInformer.Lister(),
 		sfcSynced:           sfcInformer.Informer().HasSynced,
 		addOrUpdateSfcQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AddOrUpdateSfc"),
 		delSfcQueue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DeleteSfc"),
+		sfcKeyMutex:         keymutex.New(97),
 
 		subnetsLister:           subnetInformer.Lister(),
 		subnetSynced:            subnetInformer.Informer().HasSynced,

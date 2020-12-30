@@ -484,7 +484,7 @@ func (c *Controller) gcPortChain() error {
 		if util.ContainsString(sfcNames, pc) {
 			continue
 		}
-		if err := c.ovnClient.DelChain(pc); err != nil {
+		if err := c.ovnClient.DelPortChain(pc); err != nil {
 			klog.Errorf("failed to delete port chain %s, %v", pc, err)
 			return err
 		}

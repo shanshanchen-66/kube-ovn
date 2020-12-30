@@ -404,6 +404,12 @@ func (c *Controller) handleAddPod(key string) error {
 		}
 	}
 
+	newSfcMd5, err := renewClassifier(key, c)
+	if err != nil {
+		return err
+	}
+	pod.Annotations[util.SfcMd5Annotation] = newSfcMd5
+
 	if _, err := c.config.KubeClient.CoreV1().Pods(namespace).Patch(name, types.JSONPatchType, generatePatchPayload(pod.Annotations, op)); err != nil {
 		if k8serrors.IsNotFound(err) {
 			// Sometimes pod is deleted between kube-ovn configure ovn-nb and patch pod.
@@ -414,6 +420,12 @@ func (c *Controller) handleAddPod(key string) error {
 		klog.Errorf("patch pod %s/%s failed %v", name, namespace, err)
 		return err
 	}
+
+	if err := c.reconcileVnfGroupPorts(name, namespace, AddPodEvent); err != nil {
+		klog.Errorf("failed to reconcileVnfGroupPorts %s, %v", ovs.PodNameToPortName(name, namespace), err)
+		return err
+	}
+
 	return nil
 }
 
@@ -449,6 +461,11 @@ func (c *Controller) handleDeletePod(key string) error {
 		}
 	}
 
+	if _, err := renewClassifier(key, c); err != nil {
+		klog.Errorf("failed to delete classifier %s, %v", name, err)
+		return err
+	}
+
 	if err := c.ovnClient.DeleteLogicalSwitchPort(ovs.PodNameToPortName(name, namespace)); err != nil {
 		klog.Errorf("failed to delete lsp %s, %v", ovs.PodNameToPortName(name, namespace), err)
 		return err
@@ -462,6 +479,11 @@ func (c *Controller) handleDeletePod(key string) error {
 	}
 
 	c.ipam.ReleaseAddressByPod(key)
+
+	if err := c.reconcileVnfGroupPorts(name, namespace, DelPodEvent); err != nil {
+		klog.Errorf("failed to reconcileVnfGroupPorts %s, %v", ovs.PodNameToPortName(name, namespace), err)
+		return err
+	}
 	return nil
 }
 
@@ -700,42 +722,22 @@ func (c *Controller) reconcilePodClassifier(sfcName string) error {
 		return err
 	}
 
-	sfcIsNil := false
-	sfc, err := c.sfcLister.Get(sfcName)
-	if err != nil {
-		sfcIsNil = true
-		klog.Infof("sfc %s is nil.", sfcName)
-	}
-
 	for _, pod := range pods {
-		key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-		c.podKeyMutex.Lock(key)
-		defer c.podKeyMutex.Unlock(key)
-
-		pccName := ovs.PodNameToClassifierName(pod.Name, sfc.Name)
-		if sfcIsNil {
-			klog.Infof("start to clean classifier of sfc %s.", sfcName)
-			pod.Annotations[util.SfcMd5Annotation] = ""
-			if err := c.ovnClient.DelPortChainClassifier(pccName); err != nil {
-				return err
-			}
-		} else {
-			sfcName := pod.Annotations[util.SfcAnnotation]
-			sfcMd5 := pod.Annotations[util.SfcMd5Annotation]
-			if sfcName == "" || sfcMd5 == sfc.Status.Md5 {
-				continue
-			}
-
-			if err := c.ovnClient.DelPortChainClassifier(pccName); err != nil {
-				return err
-			}
-			if err := c.ovnClient.AddChainClassifier(pccName, sfc.Spec.Subnet, sfc.Name, ovs.PodNameToPortName(pod.Name, pod.Namespace),
-				"exit-lport", "bi-directional"); err != nil {
-				return err
-			}
-			pod.Annotations[util.SfcMd5Annotation] = sfc.Status.Md5
+		sfcSpec := pod.Annotations[util.SfcAnnotation]
+		if sfcSpec != sfcName {
+			continue
 		}
-
+		podKdy := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+		newMd5, err := renewClassifier(podKdy, c)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		oldMd5 := pod.Annotations[util.SfcMd5Annotation]
+		if newMd5 == oldMd5 {
+			continue
+		}
+		pod.Annotations[util.SfcMd5Annotation] = newMd5
 		if _, err := c.config.KubeClient.CoreV1().Pods(pod.Namespace).Patch(pod.Name, types.JSONPatchType, generatePatchPayload(pod.Annotations, "replace")); err != nil {
 			if k8serrors.IsNotFound(err) {
 				continue
@@ -758,4 +760,57 @@ func generatePatchPayload(annotations map[string]string, op string) []byte {
 
 	raw, _ := json.Marshal(annotations)
 	return []byte(fmt.Sprintf(patchPayloadTemplate, op, raw))
+}
+
+func renewClassifier(podKey string, c *Controller) (newMd5 string, err error) {
+	namespace, podName, err := cache.SplitMetaNamespaceKey(podKey)
+	if err != nil {
+		return "", err
+	}
+
+	// check pod resource
+	pod, err := c.podsLister.Pods(namespace).Get(podName)
+	if err != nil && k8serrors.IsNotFound(err) {
+		// clean classifier
+		if err := c.ovnClient.DelPortChainClassifier(podName); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	// check pod annotation
+	sfcName := pod.Annotations[util.SfcAnnotation]
+	if sfcName == "" {
+		// clean classifier
+		if err := c.ovnClient.DelPortChainClassifier(podName); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	// rebuild classifier
+	sfc, err := c.sfcLister.Get(sfcName)
+	if err != nil {
+		// clean classifier
+		if err := c.ovnClient.DelPortChainClassifier(podName); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	newMd5 = sfc.Status.Md5
+	oldMd5 := pod.Annotations[util.SfcMd5Annotation]
+	if newMd5 == oldMd5 {
+		return newMd5, nil
+	}
+
+	if err := c.ovnClient.DelPortChainClassifier(podName); err != nil {
+		return "", err
+	}
+	if err := c.ovnClient.AddPortChainClassifier(podName, sfc.Spec.Subnet, sfc.Name, ovs.PodNameToPortName(podName, namespace),
+		"exit-lport", "bi-directional"); err != nil {
+		return "", err
+	}
+
+	return newMd5, nil
 }

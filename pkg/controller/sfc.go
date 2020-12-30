@@ -118,16 +118,16 @@ func (c *Controller) processNextDelSfcWorkItem() bool {
 
 	err := func(obj interface{}) error {
 		defer c.delSfcQueue.Done(obj)
-		var sfc *kubeovnv1.Sfc
+		var key string
 		var ok bool
-		if sfc, ok = obj.(*kubeovnv1.Sfc); !ok {
+		if key, ok = obj.(string); !ok {
 			c.delSfcQueue.Forget(obj)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			return nil
 		}
-		if err := c.handleDelSfc(sfc.Name); err != nil {
+		if err := c.handleDelSfc(key); err != nil {
 			c.delSfcQueue.AddRateLimited(obj)
-			return fmt.Errorf("error syncing '%s': %s, requeuing", sfc.Name, err.Error())
+			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
 		c.delSfcQueue.Forget(obj)
 		return nil
@@ -141,6 +141,9 @@ func (c *Controller) processNextDelSfcWorkItem() bool {
 }
 
 func (c *Controller) handleAddOrUpdateSfc(key string) error {
+	c.sfcKeyMutex.Lock(key)
+	defer c.sfcKeyMutex.Unlock(key)
+
 	sfc, err := c.sfcLister.Get(key)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -170,7 +173,7 @@ func (c *Controller) handleAddOrUpdateSfc(key string) error {
 	}
 
 	// create chain
-	if err := c.ovnClient.CreateChain(sfc.Spec.Subnet, sfc.Name); err != nil {
+	if err := c.ovnClient.CreatePortChain(sfc.Name, sfc.Spec.Subnet); err != nil {
 		return err
 	}
 
@@ -192,8 +195,10 @@ func (c *Controller) handleAddOrUpdateSfc(key string) error {
 	if err != nil {
 		klog.Error(err)
 	}
+
 	md5Byte := md5.Sum(portsByte) // #nosec
-	newMd5 := string(md5Byte[:])
+	newMd5 := fmt.Sprintf("%x", md5Byte)
+	klog.Infof("newMd5: %s", newMd5)
 	if newMd5 == sfc.Status.Md5 {
 		return nil
 	}
@@ -222,7 +227,7 @@ func (c *Controller) handleAddOrUpdateSfc(key string) error {
 	sfc.Status.Md5 = newMd5
 	sfc.Status.Subnet = sfc.Spec.Subnet
 	sfc.Status.ChainExist = true
-	sfc.Status.VnfGroupPorts = groupPorts
+	sfc.Status.PortRecords = groupPorts
 	err = c.reconcilePodClassifier(sfc.Name)
 	if err != nil {
 		klog.Errorf("reconcile pod classifier failed. %v", err)
@@ -237,7 +242,7 @@ func (c Controller) patchSfcStatus(sfc *kubeovnv1.Sfc) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.config.KubeOvnClient.KubeovnV1().Subnets().Patch(sfc.Name, types.MergePatchType, bytes, "status")
+	_, err = c.config.KubeOvnClient.KubeovnV1().Sfcs().Patch(sfc.Name, types.MergePatchType, bytes, "status")
 	if err != nil {
 		return err
 	}
@@ -260,7 +265,7 @@ func (c *Controller) reconcileSfcs(vnfGroup *kubeovnv1.VnfGroup) error {
 			continue
 		}
 
-		pps := getVnfGroupPortByName(vnfGroup.Name, sfc.Status.VnfGroupPorts)
+		pps := getVnfGroupPortByName(vnfGroup.Name, sfc.Status.PortRecords)
 		if pps != nil && len(util.DiffStringSlice(pps.Ports, vnfGroup.Status.Ports)) != 0 {
 			continue
 		}
@@ -279,7 +284,7 @@ func (c *Controller) handleDelSfc(key string) error {
 		return err
 	}
 
-	if err := c.ovnClient.DelChain(key); err != nil {
+	if err := c.ovnClient.DelPortChain(key); err != nil {
 		return err
 	}
 	return nil
@@ -305,4 +310,33 @@ func getVnfGroupPortByName(name string, portRecords []*kubeovnv1.VnfGroupPort) *
 		}
 	}
 	return nil
+}
+
+func (c *Controller) cleanPortPairGroup(chainName string) error {
+	// clean port pair group
+	ppgs, err := c.ovnClient.ListLogicalPortPairGroup(chainName)
+	if err != nil {
+		return err
+	}
+	for _, ppg := range ppgs {
+		if err = c.ovnClient.DelLogicalPortPairGroup(ppg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) getSfcWithVnfGroup(vnfGroupName string) (sfcNames []string, err error) {
+	sfcs, err := c.sfcLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	for _, sfc := range sfcs {
+		for _, vnfGroupPort := range sfc.Status.PortRecords {
+			if vnfGroupPort.GroupName == vnfGroupName {
+				sfcNames = append(sfcNames, sfc.Name)
+			}
+		}
+	}
+	return
 }

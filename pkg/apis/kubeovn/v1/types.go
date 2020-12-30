@@ -286,7 +286,7 @@ type VnfGroup struct {
 }
 
 type VnfGroupSpec struct {
-	Ips    []string `json:"ip,omitempty"`
+	Ips    []string `json:"ips,omitempty"`
 	Subnet string   `json:"subnet,omitempty"`
 }
 
@@ -298,7 +298,7 @@ type VnfGroupStatus struct {
 	Conditions []VnfGroupCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	Subnet string   `json:"subnet,omitempty"`
-	Ports  []string `json:"port,omitempty"`
+	Ports  []string `json:"ports,omitempty"`
 }
 
 // Condition describes the state of an object at a certain point.
@@ -355,10 +355,10 @@ type SfcStatus struct {
 	// +patchStrategy=merge
 	Conditions []SfcCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
-	ChainExist    bool            `json:"chainExist,omitempty"`
-	Subnet        string          `json:"subnet,omitempty"`
-	Md5           string          `json:"md5,omitempty"`
-	VnfGroupPorts []*VnfGroupPort `json:"vnfGroupPorts,omitempty"`
+	ChainExist  bool            `json:"chainExist,omitempty"`
+	Subnet      string          `json:"subnet,omitempty"`
+	Md5         string          `json:"md5,omitempty"`
+	PortRecords []*VnfGroupPort `json:"portRecords,omitempty"`
 }
 
 type VnfGroupPort struct {
