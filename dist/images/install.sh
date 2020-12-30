@@ -1079,8 +1079,8 @@ rules:
   - apiGroups:
       - "kubeovn.io"
     resources:
-      - vnfs
-      - vnfs/status
+      - vnfgroups
+      - vnfgroups/status
       - sfcs
       - sfcs/status
       - vpcs
@@ -1997,7 +1997,7 @@ vsctl(){
 
 diagnose(){
   kubectl get crd sfcs.kubeovn.io
-  kubectl get crd vnfs.kubeovn.io
+  kubectl get crd vnfgroups.kubeovn.io
   kubectl get crd vpcs.kubeovn.io
   kubectl get crd subnets.kubeovn.io
   kubectl get crd ips.kubeovn.io
