@@ -9,10 +9,6 @@ import (
 	"strings"
 	"time"
 
-	kubeovnv1 "github.com/alauda/kube-ovn/pkg/apis/kubeovn/v1"
-	"github.com/alauda/kube-ovn/pkg/ipam"
-	"github.com/alauda/kube-ovn/pkg/ovs"
-	"github.com/alauda/kube-ovn/pkg/util"
 	"github.com/intel/multus-cni/logging"
 	multustypes "github.com/intel/multus-cni/types"
 	v1 "k8s.io/api/core/v1"
@@ -23,6 +19,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+
+	kubeovnv1 "github.com/alauda/kube-ovn/pkg/apis/kubeovn/v1"
+	"github.com/alauda/kube-ovn/pkg/ipam"
+	"github.com/alauda/kube-ovn/pkg/ovs"
+	"github.com/alauda/kube-ovn/pkg/util"
 )
 
 type providerType int
@@ -707,15 +708,19 @@ func (c *Controller) getPodDefaultSubnet(pod *v1.Pod) (*kubeovnv1.Subnet, error)
 }
 
 func (c *Controller) getPodAttachmentNet(pod *v1.Pod) ([]*kubeovnNet, error) {
-	var wholeAttachNets string
-	attachNetworks := pod.Annotations[util.AttachmentNetworkAnnotation]
+	var networkList []string
+
 	defaultAttachNetworks := pod.Annotations[util.DefaultNetworkAnnotation]
 	if defaultAttachNetworks != "" {
-		wholeAttachNets = defaultAttachNetworks
+		networkList = append(networkList, defaultAttachNetworks)
 	}
+
+	attachNetworks := pod.Annotations[util.AttachmentNetworkAnnotation]
 	if attachNetworks != "" {
-		wholeAttachNets = wholeAttachNets + "," + attachNetworks
+		networkList = append(networkList, attachNetworks)
 	}
+
+	wholeAttachNets := strings.Join(networkList, ",")
 	if wholeAttachNets == "" {
 		return nil, nil
 	}
