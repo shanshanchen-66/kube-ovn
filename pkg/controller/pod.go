@@ -673,33 +673,35 @@ func needAllocateSubnets(pod *v1.Pod, nets []*kubeovnNet) []*kubeovnNet {
 }
 
 func (c *Controller) getPodDefaultSubnet(pod *v1.Pod) (*kubeovnv1.Subnet, error) {
-	subnet, err := c.subnetsLister.Get(c.config.DefaultLogicalSwitch)
-	if err != nil {
-		klog.Errorf("failed to get default subnet %v", err)
-		return nil, err
-	}
-
-	if pod.Annotations == nil {
-		return subnet, nil
-	}
-
-	subnets, err := c.subnetsLister.List(labels.Everything())
-	if err != nil {
-		klog.Errorf("failed to list subnets %v", err)
-		return nil, err
-	}
-
+	var subnetName string
+	// 1. check annotation subnet
 	lsName, lsExist := pod.Annotations[util.LogicalSwitchAnnotation]
-	for _, s := range subnets {
-		if lsExist && lsName == s.Name {
-			return s, nil
+	if lsExist {
+		subnetName = lsName
+	} else {
+		ns, err := c.namespacesLister.Get(pod.Namespace)
+		if err != nil {
+			klog.Errorf("failed to get namespace %v", err)
+			return nil, err
 		}
-		for _, ns := range s.Spec.Namespaces {
-			if ns == pod.Namespace {
-				subnet = s
-				break
-			}
+		if ns.Annotations == nil {
+			err = fmt.Errorf("namespace network annotations is nil")
+			klog.Error(err)
+			return nil, err
 		}
+
+		subnetName = ns.Annotations[util.LogicalSwitchAnnotation]
+		if subnetName == "" {
+			err = fmt.Errorf("namespace default logical switch is not found")
+			klog.Error(err)
+			return nil, err
+		}
+	}
+
+	subnet, err := c.subnetsLister.Get(subnetName)
+	if err != nil {
+		klog.Errorf("failed to get subnet %v", err)
+		return nil, err
 	}
 	return subnet, nil
 }
