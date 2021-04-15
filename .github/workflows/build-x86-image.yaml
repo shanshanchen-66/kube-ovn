@@ -188,7 +188,7 @@ jobs:
           docker load --input image.tar
           sudo make kind-install-ipv6
   push:
-    needs: [single-e2e, ha-e2e, ipv6-e2e]
+    needs: [single-e2e]
     name: push
     runs-on: ubuntu-18.04
     steps:

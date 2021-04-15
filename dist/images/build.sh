@@ -30,9 +30,9 @@ git clone -b branch-20.06 --depth=1 https://github.com/ovn-org/ovn.git
 cd ovn
 
 # kube-ovn related patches
-curl https://github.com/kubeovn/ovn/commit/f2db72af17f8ad1ea721b1d02e005ed84620fde2.patch | git apply
+#curl https://github.com/kubeovn/ovn/commit/f2db72af17f8ad1ea721b1d02e005ed84620fde2.patch | git apply
 
-sed -i 's/20.06.3/20.06.2/g' configure.ac
+#sed -i 's/20.06.3/20.06.2/g' configure.ac
 ./boot.sh
 if [ "$ARCH" = "amd64" ]; then
   ./configure LIBS=-ljemalloc --with-ovs-source=/ovs CFLAGS="-O2 -g -msse4.2 -mpopcnt"
