@@ -11,7 +11,7 @@ on:
     branches:
       - master
       - release-*
-      - etcdn-release-*
+      - feat/etcdn*
     paths-ignore:
       - 'docs/**'
       - 'yamls/**'
@@ -188,7 +188,7 @@ jobs:
           docker load --input image.tar
           sudo make kind-install-ipv6
   push:
-    needs: [single-e2e, ha-e2e, ipv6-e2e]
+    needs: build
     name: push
     runs-on: ubuntu-18.04
     steps:
