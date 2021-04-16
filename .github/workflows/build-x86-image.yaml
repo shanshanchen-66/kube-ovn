@@ -204,7 +204,7 @@ jobs:
         run: |
           docker load --input image.tar
       - name: Push
-        if: ${{ github.ref == 'refs/heads/master' || contains(github.ref, 'release') || contains(github.ref, 'etcdn-release') }}
+        if: ${{ github.ref == 'refs/heads/master' || contains(github.ref, 'release') || contains(github.ref, 'feat/etcdn') }}
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
