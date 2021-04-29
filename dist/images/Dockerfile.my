@@ -1,0 +1,4 @@
+# syntax = docker/dockerfile:experimental
+FROM etcdnecx/kube-ovn:etcdn-dev-1.6.x
+
+COPY kube-ovn-cmd /kube-ovn/kube-ovn-cmd
