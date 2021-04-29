@@ -12,6 +12,25 @@ RUN apt update && apt install build-essential git libnuma-dev autoconf curl \
     flake8 python3-sphinx graphviz groff -y
 
 RUN cd /usr/src/ && \
+    git clone -b branch-2.15 --depth=1 https://github.com/openvswitch/ovs.git
+    rm -rf .git && \
+    DATAPATH_CONFIGURE_OPTS='--prefix=/usr --enable-shared' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
+
+RUN cd /usr/src/ && git clone -b branch-20.12 --depth=1 https://github.com/ovn-org/ovn.git && \
+    cd ovn && \
+    curl https://github.com/kubeovn/ovn/commit/d8253981485e499979cc47c9453b6be8eebe5f0e.patch | git apply --exclude debian/changelog && \
+    curl https://github.com/kubeovn/ovn/commit/e19ff25f2464e67127c7eb1edef44803aa4a5462.patch | git apply && \
+    curl https://github.com/kubeovn/ovn/commit/289c62e3fcd05901dac4b727aa59f6cba058905f.patch | git apply && \
+    curl https://github.com/kubeovn/ovn/commit/e24734913d25c0bffdf1cfd79e14ef43d01e1019.patch | git apply && \
+    curl https://github.com/kubeovn/ovn/commit/afb8d70fd2488631fdd71af26c6fedf78ef9309a.patch | git apply && \
+    curl https://github.com/kubeovn/ovn/commit/402049e21ce5fb2d0ea23c04843f49a4ab65f027.patch | git apply && \
+    sed -i 's/OVN/ovn/g' debian/changelog && \
+    rm -rf .git && \
+    ./boot.sh && \
+    DATAPATH_CONFIGURE_OPTS='--prefix=/usr --with-ovs-source=/usr/src/ovs' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
+
+RUN cd /usr/src/ && \
+    rm ovs -rf && \
     git clone -b branch-2.14 --depth=1 https://github.com/openvswitch/ovs.git && \
     cd ovs && \
     curl https://github.com/kubeovn/ovs/commit/df1c802f568be2af84aa81372fec46f5b09b4366.patch | git apply && \
@@ -20,16 +39,6 @@ RUN cd /usr/src/ && \
     ./boot.sh && \
     rm -rf .git && \
     DATAPATH_CONFIGURE_OPTS='--prefix=/usr --enable-shared' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
-
-RUN cd /usr/src/ && git clone -b branch-20.06 --depth=1 https://github.com/ovn-org/ovn.git && \
-    cd ovn && \
-    curl https://github.com/kubeovn/ovn/commit/d8253981485e499979cc47c9453b6be8eebe5f0e.patch | git apply --exclude debian/changelog && \
-    curl https://github.com/kubeovn/ovn/commit/afb8d70fd2488631fdd71af26c6fedf78ef9309a.patch | git apply && \
-    curl https://github.com/kubeovn/ovn/commit/402049e21ce5fb2d0ea23c04843f49a4ab65f027.patch | git apply && \
-    sed -i 's/OVN/ovn/g' debian/changelog && \
-    rm -rf .git && \
-    ./boot.sh && \
-    DATAPATH_CONFIGURE_OPTS='--prefix=/usr --with-ovs-source=/usr/src/ovs' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
 
 RUN mkdir /packages/ && \
      cp /usr/src/libopenvswitch*.deb /packages && \
