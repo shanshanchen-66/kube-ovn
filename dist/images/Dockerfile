@@ -14,7 +14,12 @@ RUN apt update && apt install build-essential git libnuma-dev autoconf curl \
 RUN cd /usr/src/ && \
     git clone -b branch-2.15 --depth=1 https://github.com/openvswitch/ovs.git && \
     cd ovs && \
-    ./boot.sh
+    curl https://github.com/kubeovn/ovs/commit/df1c802f568be2af84aa81372fec46f5b09b4366.patch | git apply && \
+    curl https://github.com/kubeovn/ovs/commit/8dd4973bba021ce92eb9f42446d6c1c0e3474e25.patch | git apply && \
+
+    ./boot.sh && \
+    rm -rf .git && \
+    DATAPATH_CONFIGURE_OPTS='--prefix=/usr --enable-shared' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
 
 RUN cd /usr/src/ && git clone -b branch-20.12 --depth=1 https://github.com/ovn-org/ovn.git && \
     cd ovn && \
@@ -30,9 +35,8 @@ RUN cd /usr/src/ && git clone -b branch-20.12 --depth=1 https://github.com/ovn-o
     DATAPATH_CONFIGURE_OPTS='--prefix=/usr --with-ovs-source=/usr/src/ovs' DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
 
 RUN cd /usr/src/ && \
-    rm ovs -rf && \
-    git clone -b branch-2.14 --depth=1 https://github.com/openvswitch/ovs.git && \
-    cd ovs && \
+    git clone -b branch-2.14 --depth=1 https://github.com/openvswitch/ovs.git ovs-2.14 && \
+    cd ovs-2.14 && \
     curl https://github.com/kubeovn/ovs/commit/df1c802f568be2af84aa81372fec46f5b09b4366.patch | git apply && \
     curl https://github.com/kubeovn/ovs/commit/8dd4973bba021ce92eb9f42446d6c1c0e3474e25.patch | git apply && \
     rm -rf .git && \
