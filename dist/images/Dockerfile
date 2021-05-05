@@ -13,7 +13,7 @@ RUN apt update && apt install build-essential git libnuma-dev autoconf curl \
 
 RUN cd /usr/src/ && \
     git clone -b branch-2.15 --depth=1 https://github.com/openvswitch/ovs.git && \
-    rm -rf .git && \
+    cd ovs && \
     ./boot.sh
 
 RUN cd /usr/src/ && git clone -b branch-20.12 --depth=1 https://github.com/ovn-org/ovn.git && \
