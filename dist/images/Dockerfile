@@ -48,7 +48,7 @@ RUN mkdir /packages/ && \
      cp /usr/src/openvswitch-*.deb /packages && \
      cp /usr/src/python3-openvswitch*.deb /packages && \
      cp /usr/src/ovn-*.deb /packages && \
-     cd /packages && rm -f *dbg* *datapath* *docker* *vtep* *ipsec* *test* *dev*
+     cd /packages && rm -f *dbg* *datapath* *docker* *vtep* *ipsec* *test* *dev* *2.15*
 
 FROM ubuntu:20.04
 ARG RPM_ARCH
