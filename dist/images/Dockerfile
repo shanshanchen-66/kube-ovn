@@ -75,7 +75,7 @@ RUN curl -L https://dl.k8s.io/${KUBE_VERSION}/kubernetes-client-linux-${ARCH}.ta
 
 RUN --mount=type=bind,target=/packages,from=ovs-builder,source=/packages  \
     dpkg -i /packages/libopenvswitch*.deb && \
-    dpkg -i /packages/openvswitch-*.deb && \
+    dpkg -i /packages/openvswitch-*2.14*.deb && \
     dpkg -i /packages/python3-openvswitch*.deb &&\
     dpkg -i --ignore-depends=openvswitch-switch,openvswitch-common /packages/ovn-*.deb
 
